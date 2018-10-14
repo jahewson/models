@@ -108,11 +108,30 @@ _ADE20K_INFORMATION = DatasetDescriptor(
     ignore_label=0,
 )
 
+_IRIS2_INFORMATION = DatasetDescriptor(
+    splits_to_sizes={
+        'train': 35,
+        'val': 5,
+    },
+    num_classes=2,
+    ignore_label=255,
+)
+
+_IRIS5_INFORMATION = DatasetDescriptor(
+    splits_to_sizes={
+        'train': 35,
+        'val': 5,
+    },
+    num_classes=5,
+    ignore_label=255,
+)
 
 _DATASETS_INFORMATION = {
     'cityscapes': _CITYSCAPES_INFORMATION,
     'pascal_voc_seg': _PASCAL_VOC_SEG_INFORMATION,
     'ade20k': _ADE20K_INFORMATION,
+    'iris2': _IRIS_INFORMATION2,
+    'iris5': _IRIS_INFORMATION5,
 }
 
 # Default file pattern of TFRecord of TensorFlow Example.

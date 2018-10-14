@@ -53,6 +53,9 @@ flags.DEFINE_multi_float('inference_scales', [1.0],
 flags.DEFINE_bool('add_flipped_images', False,
                   'Add flipped images during inference or not.')
 
+flags.DEFINE_bool('export_logits', False,
+                  'Export the logits, excluding the final argmax.')
+
 # Input name of the exported model.
 _INPUT_NAME = 'ImageTensor'
 
@@ -114,10 +117,16 @@ def main(unused_argv):
 
     if tuple(FLAGS.inference_scales) == (1.0,):
       tf.logging.info('Exported model performs single-scale inference.')
-      predictions = model.predict_labels(
+      if FLAGS.export_logits:
+        predictions = model.predict_logits(
           image,
           model_options=model_options,
           image_pyramid=FLAGS.image_pyramid)
+      else:
+        predictions = model.predict_labels(
+            image,
+            model_options=model_options,
+            image_pyramid=FLAGS.image_pyramid)
     else:
       tf.logging.info('Exported model performs multi-scale inference.')
       predictions = model.predict_labels_multi_scale(
@@ -127,20 +136,32 @@ def main(unused_argv):
           add_flipped_images=FLAGS.add_flipped_images)
 
     # Crop the valid regions from the predictions.
-    semantic_predictions = tf.slice(
-        predictions[common.OUTPUT_TYPE],
-        [0, 0, 0],
-        [1, resized_image_size[0], resized_image_size[1]])
+    if FLAGS.export_logits:
+      semantic_predictions = tf.slice(
+          predictions[common.OUTPUT_TYPE],
+          [0, 0, 0, 0],
+          [1, resized_image_size[0], resized_image_size[1], FLAGS.num_classes])
+    else:
+      semantic_predictions = tf.slice(
+          predictions[common.OUTPUT_TYPE],
+          [0, 0, 0],
+          [1, resized_image_size[0], resized_image_size[1]])
+
     # Resize back the prediction to the original image size.
     def _resize_label(label, label_size):
       # Expand dimension of label to [1, height, width, 1] for resize operation.
-      label = tf.expand_dims(label, 3)
+      if not FLAGS.export_logits:
+        label = tf.expand_dims(label, 3)
       resized_label = tf.image.resize_images(
           label,
           label_size,
           method=tf.image.ResizeMethod.NEAREST_NEIGHBOR,
           align_corners=True)
-      return tf.squeeze(resized_label, 3)
+      if FLAGS.export_logits:
+        return resized_label
+      else:
+        return tf.squeeze(resized_label, 3)
+
     semantic_predictions = _resize_label(semantic_predictions, image_size)
     semantic_predictions = tf.identity(semantic_predictions, name=_OUTPUT_NAME)
 

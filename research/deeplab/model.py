@@ -185,6 +185,37 @@ def predict_labels(images, model_options, image_pyramid=None):
 
   return predictions
 
+def predict_logits(images, model_options, image_pyramid=None):
+  """Predicts score map of segmentation labels.
+
+  Args:
+    images: A tensor of size [batch, height, width, channels].
+    model_options: A ModelOptions instance to configure models.
+    image_pyramid: Input image scales for multi-scale feature extraction.
+
+  Returns:
+    A dictionary with keys specifying the output_type (e.g., semantic
+      prediction) and values storing Tensors representing predictions (logits for
+      for each channel). Each prediction has size [batch, height, width]. 
+  """
+  outputs_to_scales_to_logits = multi_scale_logits(
+      images,
+      model_options=model_options,
+      image_pyramid=image_pyramid,
+      is_training=False,
+      fine_tune_batch_norm=False)
+
+  predictions = {}
+  for output in sorted(outputs_to_scales_to_logits):
+    scales_to_logits = outputs_to_scales_to_logits[output]
+    logits = tf.image.resize_bilinear(
+        scales_to_logits[MERGED_LOGITS_SCOPE],
+        tf.shape(images)[1:3],
+        align_corners=True)
+    predictions[output] = logits
+
+  return predictions
+
 
 def scale_dimension(dim, scale):
   """Scales the input dimension.
